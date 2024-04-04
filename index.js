@@ -16,17 +16,7 @@ morgan.token('req-body', (req) => {
 app.use(morgan(':method :url :status :res[content-length] - :response-time :req-body'))
 app.use(cors())
 
-const errorHandler = (error, request, response, next) => {
-  console.error(error.message)
 
-  if (error.name === 'CastError') {
-    return response.status(400).send({ error: 'malformatted id' })
-  } else if (error.name ==='NameError' || error.name === 'NumberError') {
-    return response.status(400).json({ error: error.message})
-  }
-  next(error)
-}
-app.use(errorHandler)
 
 app.get('/info', async (request, response, next) => {
   const infoAmount = await Person.countDocuments({})
@@ -73,12 +63,11 @@ const generateId = () => {
   return randId
 }
 app.put('/api/persons/:id', (request, response, next) => {
-  const body = request.body
-  const person = {
-    name: body.name,
-    number: body.number
-  }
-  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+  const {name, number} = request.body
+  Person.findByIdAndUpdate(
+    request.params.id, 
+    { name, number },
+    { new: true, runValidators: true, context: 'query' })
     .then(updatedPerson => {
       response.json(updatedPerson)
     })
@@ -86,15 +75,6 @@ app.put('/api/persons/:id', (request, response, next) => {
 })
 app.post('/api/persons', (request, response, next) => {
   const body = request.body
-  if (!body.name) {
-    const error = new Error('Name is missing')
-    error.name = 'NameError'
-    return next(error)
-  } else if (!body.number) {
-    const error = new Error('Number is missing')
-    error.name = 'NumberError'
-    return next(error)
-  }
   const person = new Person({
     id: generateId(),
     name: body.name,
@@ -104,6 +84,26 @@ app.post('/api/persons', (request, response, next) => {
   response.json(savedPerson)
   }).catch(error => next(error))
 })
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint' })
+}
+
+// olemattomien osoitteiden käsittely
+app.use(unknownEndpoint)
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } else if (error.name ==='NameError' || error.name === 'NumberError') {
+    return response.status(400).json({ error: error.message})
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
+  next(error)
+}
+app.use(errorHandler)
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
