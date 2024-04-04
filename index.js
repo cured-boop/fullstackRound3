@@ -18,12 +18,12 @@ app.use(cors())
 
 
 
-app.get('/info', async (request, response, next) => {
+app.get('/info', async (request, response) => {
   const infoAmount = await Person.countDocuments({})
   const time = new Date().toString()
   console.log(infoAmount)
   console.log(time)
-  
+
   response.send(`
     <div>
       <p>Phonebook has info for ${infoAmount} people</p>
@@ -40,19 +40,19 @@ app.get('/api/persons', (request, response) => {
 
 app.get('/api/persons/:id', (request, response, next) => {
   Person.findById(request.params.id)
-  .then(person=> {
-    if (person) {
-      response.json(person)
-    } else {
-      response.status(404).end()
-    }
-  })
-  .catch(error => next(error))
+    .then(person => {
+      if (person) {
+        response.json(person)
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
 
 app.delete('/api/persons/:id', (request, response, next) => {
   Person.findByIdAndDelete(request.params.id)
-    .then(person => {
+    .then(() => {
       response.status(204).end()
     })
     .catch(error => next(error))
@@ -63,9 +63,9 @@ const generateId = () => {
   return randId
 }
 app.put('/api/persons/:id', (request, response, next) => {
-  const {name, number} = request.body
+  const { name, number } = request.body
   Person.findByIdAndUpdate(
-    request.params.id, 
+    request.params.id,
     { name, number },
     { new: true, runValidators: true, context: 'query' })
     .then(updatedPerson => {
@@ -81,7 +81,7 @@ app.post('/api/persons', (request, response, next) => {
     number: body.number,
   })
   person.save().then(savedPerson => {
-  response.json(savedPerson)
+    response.json(savedPerson)
   }).catch(error => next(error))
 })
 const unknownEndpoint = (request, response) => {
@@ -97,7 +97,7 @@ const errorHandler = (error, request, response, next) => {
   if (error.name === 'CastError') {
     return response.status(400).send({ error: 'malformatted id' })
   } else if (error.name ==='NameError' || error.name === 'NumberError') {
-    return response.status(400).json({ error: error.message})
+    return response.status(400).json({ error: error.message })
   } else if (error.name === 'ValidationError') {
     return response.status(400).json({ error: error.message })
   }
